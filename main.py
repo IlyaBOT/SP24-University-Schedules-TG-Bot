@@ -1,26 +1,33 @@
+#!/usr/bin/env python3
+
 import logging
 import asyncio
 from functools import partial
 from aiogram import types
-from aiogram.filters import Command
+from aiogram.filters import Command, CommandStart
+from aiogram.types import BotCommand
 
 from TopDonater import TopDonater_cmd
 from bot_init import bot, dp
 from config import TOKEN_API
 from commands import send_pairs, send_current_week, send_nearest_pair, send_day_schedule, send_tomorrow_schedule, \
-    not_list, send_weekly_schedule, set_notification_time, test_notification, send_next_week_schedule, cmd_id
+    not_list, send_weekly_schedule, set_notification_time, test_notification, send_next_week_schedule, cmd_id, \
+    switch_week
 from scheduler import start_scheduler
 from notifications import send_daily_notification, send_help
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from TagAll import tag_all_members, MemberTrackerMiddleware, cleanup_inactive_members
 from Update import cmd_update
+from commands_info import commands_info
 
 # Инициализация планировщика
 scheduler = AsyncIOScheduler()
 
 # Регистрация обработчиков
+dp.message.register(send_help, CommandStart())
 dp.message.register(send_pairs, Command("pairs", ignore_case=True))
 dp.message.register(send_current_week, Command("week", ignore_case=True))
+dp.message.register(switch_week, Command("switchweek", ignore_case=True))
 dp.message.register(send_nearest_pair, Command("pair", ignore_case=True))
 dp.message.register(send_day_schedule, Command("pairday", ignore_case=True))
 dp.message.register(send_tomorrow_schedule, Command("tomorrow", ignore_case=True))
@@ -41,7 +48,11 @@ dp.message.register(TopDonater_cmd, Command("top", ignore_case=True))
 dp.update.middleware(MemberTrackerMiddleware())
 @dp.startup()
 async def on_startup():
-    cmd_update
+    await bot.set_my_commands([
+        BotCommand(command=command.removeprefix("/"), description=description)
+        for command, description in commands_info.items()
+    ])
+    logging.info("Меню команд Telegram синхронизировано.")
     asyncio.create_task(cleanup_inactive_members())
     logging.info("Фоновая задача очистки неактивных участников запущена.")
 

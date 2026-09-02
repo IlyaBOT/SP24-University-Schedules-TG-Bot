@@ -1,5 +1,11 @@
+import sqlite3
 from datetime import datetime, timedelta
 from functools import lru_cache
+from pathlib import Path
+
+
+SETTINGS_DB_PATH = Path(__file__).with_name("user_settings.db")
+WEEK_SHIFT_KEY = "week_shift"
 
 upper_week_schedule = {'Понедельник': ['1. *   08:00-09:35',
                                        '2. Психология (Лек.) Ауд. 9.413 + ИИ-24, КИ-24, КСЦ-24 доц. Павлова Е.В.   09:55-11:30',
@@ -43,12 +49,56 @@ lower_week_schedule = {'Понедельник': ['1. *   08:00-09:35',
                        'Воскресенье': 'Доброе утречко, друзья, сегодня такой хороший день.. Выходной...! Желаю всем хорошо провести этот день!'}
 
 
+def _init_week_settings():
+    with sqlite3.connect(SETTINGS_DB_PATH) as conn:
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS bot_settings (
+                key TEXT PRIMARY KEY,
+                value TEXT NOT NULL
+            )
+        """)
+
+
+def _get_week_shift():
+    _init_week_settings()
+    with sqlite3.connect(SETTINGS_DB_PATH) as conn:
+        row = conn.execute(
+            "SELECT value FROM bot_settings WHERE key = ?",
+            (WEEK_SHIFT_KEY,),
+        ).fetchone()
+    return int(row[0]) % 2 if row else 0
+
+
+def switch_current_week():
+    """Переключает чётность недели и сохраняет сдвиг в SQLite."""
+    _init_week_settings()
+    with sqlite3.connect(SETTINGS_DB_PATH) as conn:
+        conn.execute("BEGIN IMMEDIATE")
+        row = conn.execute(
+            "SELECT value FROM bot_settings WHERE key = ?",
+            (WEEK_SHIFT_KEY,),
+        ).fetchone()
+        current_shift = int(row[0]) % 2 if row else 0
+        new_shift = 1 - current_shift
+        conn.execute(
+            """
+            INSERT INTO bot_settings (key, value)
+            VALUES (?, ?)
+            ON CONFLICT(key) DO UPDATE SET value = excluded.value
+            """,
+            (WEEK_SHIFT_KEY, str(new_shift)),
+        )
+
+    get_schedule_for_today_cached.cache_clear()
+    return get_current_week()
+
+
 def get_current_week(tomorrow=False):
     today = datetime.today()
     if tomorrow:
         today += timedelta(days=1)  # Переходим на завтра
 
-    week_number = today.isocalendar()[1]
+    week_number = today.isocalendar()[1] + _get_week_shift()
     return "upper" if week_number % 2 == 1 else "lower"
 
 

@@ -1,0 +1,18 @@
+[Unit]
+Description=SP24 University Schedules Telegram Bot
+StartLimitIntervalSec=60
+StartLimitBurst=10
+
+[Service]
+Type=simple
+WorkingDirectory=/home/ilyabot/Projects/SP24-University-Schedules-TG-Bot
+ExecStart=/home/ilyabot/Projects/SP24-University-Schedules-TG-Bot/.venv/bin/python /home/ilyabot/Projects/SP24-University-Schedules-TG-Bot/main.py
+Restart=always
+RestartSec=5
+TimeoutStopSec=30
+Environment=PYTHONUNBUFFERED=1
+SyslogIdentifier=sp24-schedule-bot
+UMask=0077
+
+[Install]
+WantedBy=default.target

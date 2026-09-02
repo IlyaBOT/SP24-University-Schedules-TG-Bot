@@ -1,4 +1,11 @@
-from schedule import get_schedule_for_today, get_current_week, get_schedule_for_day, upper_week_schedule, lower_week_schedule
+from schedule import (
+    get_schedule_for_today,
+    get_current_week,
+    get_schedule_for_day,
+    switch_current_week,
+    upper_week_schedule,
+    lower_week_schedule,
+)
 from time_utils import get_current_and_next_pair
 from datetime import datetime, timedelta
 from aiogram.enums import ParseMode
@@ -58,6 +65,20 @@ async def send_current_week(message: types.Message):
     else:
         response = "Сейчас нижняя неделя\\."
     await message.reply(response, parse_mode=ParseMode.MARKDOWN_V2)
+
+
+async def switch_week(message: types.Message):
+    try:
+        current_week = switch_current_week()
+        get_schedule_for_today_cached.cache_clear()
+        week_name = "верхняя" if current_week == "upper" else "нижняя"
+        await message.reply(
+            f"Неделя переключена. Теперь используется {week_name} неделя. "
+            "Изменение сохранено."
+        )
+    except Exception as e:
+        logging.error(f"Ошибка в switch_week: {e}", exc_info=True)
+        await message.reply("Не удалось переключить неделю. Попробуйте позже.")
 
 
 async def send_nearest_pair(message: types.Message):
