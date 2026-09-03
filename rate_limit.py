@@ -15,7 +15,7 @@ class CommandRateLimitMiddleware(BaseMiddleware):
 
     def __init__(
         self,
-        command_cooldown: int = 30,
+        command_cooldown: int = 10,
         all_cooldown: int = 60,
         warning_lifetime: float = 5,
         clock: Callable[[], float] = time.monotonic,
@@ -73,7 +73,7 @@ class CommandRateLimitMiddleware(BaseMiddleware):
             )
         else:
             warning = (
-                "Команды можно использовать не чаще одного раза в 30 секунд. "
+                "Команды можно использовать не чаще одного раза в 10 секунд. "
                 f"Попробуйте снова через {remaining_seconds} сек."
             )
 
