@@ -19,6 +19,7 @@ from notifications import send_daily_notification
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
 from functools import lru_cache
+from config import MAIN_ADMIN_ID
 
 
 
@@ -56,7 +57,11 @@ async def send_current_week(message: types.Message):
     await message.reply(response, parse_mode=ParseMode.MARKDOWN_V2)
 
 
-async def switch_week(message: types.Message):
+async def change_week(message: types.Message):
+    if not message.from_user or message.from_user.id != MAIN_ADMIN_ID:
+        await message.reply("Эта команда доступна только главному администратору.")
+        return
+
     try:
         current_week = switch_current_week()
         get_schedule_for_today_cached.cache_clear()
@@ -66,7 +71,7 @@ async def switch_week(message: types.Message):
             "Изменение сохранено."
         )
     except Exception as e:
-        logging.error(f"Ошибка в switch_week: {e}", exc_info=True)
+        logging.error(f"Ошибка в change_week: {e}", exc_info=True)
         await message.reply("Не удалось переключить неделю. Попробуйте позже.")
 
 

@@ -12,7 +12,7 @@ from bot_init import bot, dp
 from config import TOKEN_API
 from commands import send_pairs, send_current_week, send_nearest_pair, send_day_schedule, send_tomorrow_schedule, \
     show_reminder, send_weekly_schedule, set_reminder, test_reminder, send_next_week_schedule, cmd_id, \
-    switch_week
+    change_week
 from scheduler import scheduler, start_scheduler
 from notifications import send_daily_notification, send_welcome
 from TagAll import tag_all_members, MemberTrackerMiddleware, cleanup_inactive_members
@@ -24,7 +24,7 @@ dp.message.middleware(CommandRateLimitMiddleware())
 dp.message.register(send_welcome, CommandStart())
 dp.message.register(send_pairs, Command("pairs", ignore_case=True))
 dp.message.register(send_current_week, Command("week", ignore_case=True))
-dp.message.register(switch_week, Command("switchweek", ignore_case=True))
+dp.message.register(change_week, Command("changeweek", ignore_case=True))
 dp.message.register(send_nearest_pair, Command("pair", ignore_case=True))
 dp.message.register(send_day_schedule, Command("pairday", ignore_case=True))
 dp.message.register(send_tomorrow_schedule, Command("tomorrow", ignore_case=True))
