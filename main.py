@@ -18,8 +18,10 @@ from notifications import send_daily_notification, send_help
 from TagAll import tag_all_members, MemberTrackerMiddleware, cleanup_inactive_members
 from Update import cmd_update
 from commands_info import commands_info
+from rate_limit import CommandRateLimitMiddleware
 
 # Регистрация обработчиков
+dp.message.middleware(CommandRateLimitMiddleware())
 dp.message.register(send_help, CommandStart())
 dp.message.register(send_pairs, Command("pairs", ignore_case=True))
 dp.message.register(send_current_week, Command("week", ignore_case=True))
