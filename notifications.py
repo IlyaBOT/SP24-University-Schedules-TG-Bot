@@ -4,21 +4,10 @@ from datetime import datetime
 from aiogram import Bot, types
 from aiogram.enums import ParseMode
 from schedule import format_schedule, get_schedule_for_today, get_current_week
-from commands_info import commands_info
-
-def escape_markdown(text: str) -> str:
-    """Экранирует зарезервированные символы для MarkdownV2."""
-    reserved_chars = ['_', '*', '[', ']', '(', ')', '~', '`', '>', '#', '+', '-', '=', '|', '{', '}', '.', '!']
-    for char in reserved_chars:
-        text = text.replace(char, f"\\{char}")
-    return text
 
 
-async def send_help(message: types.Message):
-    help_text = "Скромный список доступных команд: \n\n"
-    for command, description in commands_info.items():
-        help_text += f"{escape_markdown(command)} — {escape_markdown(description)}\n\n"
-    await message.answer(help_text, parse_mode=ParseMode.MARKDOWN_V2)
+async def send_welcome(message: types.Message):
+    await message.answer("Привет! Я бот расписания группы СП-24.")
 
 async def send_daily_notification(bot: Bot, chat_id: int):
     try:

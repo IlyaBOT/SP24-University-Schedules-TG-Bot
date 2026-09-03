@@ -14,15 +14,14 @@ from commands import send_pairs, send_current_week, send_nearest_pair, send_day_
     show_reminder, send_weekly_schedule, set_reminder, test_reminder, send_next_week_schedule, cmd_id, \
     switch_week
 from scheduler import scheduler, start_scheduler
-from notifications import send_daily_notification, send_help
+from notifications import send_daily_notification, send_welcome
 from TagAll import tag_all_members, MemberTrackerMiddleware, cleanup_inactive_members
-from Update import cmd_update
 from commands_info import commands_info
 from rate_limit import CommandRateLimitMiddleware
 
 # Регистрация обработчиков
 dp.message.middleware(CommandRateLimitMiddleware())
-dp.message.register(send_help, CommandStart())
+dp.message.register(send_welcome, CommandStart())
 dp.message.register(send_pairs, Command("pairs", ignore_case=True))
 dp.message.register(send_current_week, Command("week", ignore_case=True))
 dp.message.register(switch_week, Command("switchweek", ignore_case=True))
@@ -36,11 +35,9 @@ dp.message.register(
     partial(set_reminder, scheduler=scheduler, bot=bot),
     Command("reminder_set", ignore_case=True),
 )
-dp.message.register(send_help, Command("help", ignore_case=True))
 dp.message.register(send_next_week_schedule, Command("nextweek"))
 dp.message.register(tag_all_members, Command("all", ignore_case=True))
 dp.message.register(cmd_id, Command("id", ignore_case=True))
-dp.message.register(cmd_update, Command("update", ignore_case=True))
 dp.message.register(TopDonater_cmd, Command("top", ignore_case=True))
 
 
