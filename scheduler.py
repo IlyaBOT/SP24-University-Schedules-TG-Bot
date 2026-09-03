@@ -50,7 +50,8 @@ def start_scheduler(bot: Bot):
             send_daily_notification,
             CronTrigger(hour=hour, minute=minute),
             args=[bot, group_id],  # Передаём ID группы
-            id=f"group_{group_id}"  # Уникальный идентификатор задачи
+            id=f"group_{group_id}",  # Уникальный идентификатор задачи
+            replace_existing=True,
         )
         logging.info(f"Добавлена задача для группы {group_id} на {hour}:{minute}")
 
@@ -61,9 +62,11 @@ def start_scheduler(bot: Bot):
             send_daily_notification,
             CronTrigger(hour=hour, minute=minute),
             args=[bot, user_id],  # Передаём ID пользователя
-            id=f"user_{user_id}"  # Уникальный идентификатор задачи
+            id=f"user_{user_id}",  # Уникальный идентификатор задачи
+            replace_existing=True,
         )
         logging.info(f"Добавлена задача для пользователя {user_id} на {hour}:{minute}")
 
-    scheduler.start()  # Запускаем планировщик
+    if not scheduler.running:
+        scheduler.start()
     logging.info("Планировщик запущен.")

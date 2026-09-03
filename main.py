@@ -11,17 +11,13 @@ from TopDonater import TopDonater_cmd
 from bot_init import bot, dp
 from config import TOKEN_API
 from commands import send_pairs, send_current_week, send_nearest_pair, send_day_schedule, send_tomorrow_schedule, \
-    not_list, send_weekly_schedule, set_notification_time, test_notification, send_next_week_schedule, cmd_id, \
+    show_reminder, send_weekly_schedule, set_reminder, test_reminder, send_next_week_schedule, cmd_id, \
     switch_week
-from scheduler import start_scheduler
+from scheduler import scheduler, start_scheduler
 from notifications import send_daily_notification, send_help
-from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from TagAll import tag_all_members, MemberTrackerMiddleware, cleanup_inactive_members
 from Update import cmd_update
 from commands_info import commands_info
-
-# Инициализация планировщика
-scheduler = AsyncIOScheduler()
 
 # Регистрация обработчиков
 dp.message.register(send_help, CommandStart())
@@ -32,10 +28,12 @@ dp.message.register(send_nearest_pair, Command("pair", ignore_case=True))
 dp.message.register(send_day_schedule, Command("pairday", ignore_case=True))
 dp.message.register(send_tomorrow_schedule, Command("tomorrow", ignore_case=True))
 dp.message.register(send_weekly_schedule, Command("allweek", ignore_case=True))
-dp.message.register(not_list, Command("not_time", ignore_case=True))
-dp.message.register(partial(test_notification, bot=bot), Command("test_not", ignore_case=True))
-dp.message.register(partial(set_notification_time, scheduler=scheduler, bot=bot),
-                    Command("set_not_time", ignore_case=True))
+dp.message.register(show_reminder, Command("reminder", ignore_case=True))
+dp.message.register(partial(test_reminder, bot=bot), Command("reminder_test", ignore_case=True))
+dp.message.register(
+    partial(set_reminder, scheduler=scheduler, bot=bot),
+    Command("reminder_set", ignore_case=True),
+)
 dp.message.register(send_help, Command("help", ignore_case=True))
 dp.message.register(send_next_week_schedule, Command("nextweek"))
 dp.message.register(tag_all_members, Command("all", ignore_case=True))
@@ -58,10 +56,6 @@ async def on_startup():
 
 async def main():
     try:
-        # Запускаем планировщик
-        scheduler.start()
-        logging.info("Планировщик запущен.")
-
         # Загружаем задачи из базы данных
         start_scheduler(bot)
 
@@ -71,7 +65,8 @@ async def main():
         logging.error(f"Ошибка в main: {e}")
     finally:
         # Останавливаем планировщик при завершении программы
-        scheduler.shutdown()
+        if scheduler.running:
+            scheduler.shutdown()
         await bot.session.close()  # Закрываем сессию бота
 
 

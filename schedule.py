@@ -1,4 +1,6 @@
 import sqlite3
+import html
+import re
 from datetime import datetime, timedelta
 from functools import lru_cache
 from pathlib import Path
@@ -6,6 +8,20 @@ from pathlib import Path
 
 SETTINGS_DB_PATH = Path(__file__).with_name("user_settings.db")
 WEEK_SHIFT_KEY = "week_shift"
+
+SUBJECT_ABBREVIATIONS = {
+    "Программирование интерфейсов вычислительных систем": "ПИВС",
+    "Компьютерные системы": "КС",
+    "Современные технологии программирования": "СТП",
+    "Организация и функционирование процессорных устройств": "ОФПУ",
+}
+
+PAIR_PATTERN = re.compile(
+    r"^(?P<number>\d+\.)\s+(?P<details>.*?)\s+(?P<time>\d{1,2}:\d{2}-\d{1,2}:\d{2})$"
+)
+SUBJECT_PATTERN = re.compile(
+    r"(^| / )(.+? \((?:Лек|Лаб|Пр)\.\))"
+)
 
 upper_week_schedule = {'Понедельник': ['1. *   08:00-09:35',
                                        '2. Психология (Лек.) Ауд. 9.413 + ИИ-24, КИ-24, КСЦ-24 доц. Павлова Е.В.   09:55-11:30',
@@ -47,6 +63,43 @@ lower_week_schedule = {'Понедельник': ['1. *   08:00-09:35',
                                    '4. Организация и функционирование процессорных устройств (Лаб.) 1 и 2 подгруппы Ауд. 4.014 ст.пр. Койбаш А.А.   13:45-15:20'],
                        'Суббота': 'Доброе утречко, друзья, сегодня такой хороший день.. Выходной...! Желаю всем хорошо провести этот день!',
                        'Воскресенье': 'Доброе утречко, друзья, сегодня такой хороший день.. Выходной...! Желаю всем хорошо провести этот день!'}
+
+
+def _format_time_range(time_range: str) -> str:
+    """Убирает ведущие нули у часов: 08:00-09:35 -> 8:00-9:35."""
+    start, end = time_range.split("-")
+
+    def normalize(value: str) -> str:
+        hour, minute = value.split(":")
+        return f"{int(hour)}:{minute}"
+
+    return f"{normalize(start)}-{normalize(end)}"
+
+
+def format_pair(pair: str) -> str | None:
+    """Форматирует одну пару для отправки в Telegram с parse_mode=HTML."""
+    if "*" in pair:
+        return None
+
+    match = PAIR_PATTERN.match(pair.strip())
+    if not match:
+        return html.escape(pair)
+
+    details = match.group("details")
+    for full_name, abbreviation in SUBJECT_ABBREVIATIONS.items():
+        details = details.replace(full_name, abbreviation)
+
+    escaped_details = html.escape(details)
+    emphasized_details = SUBJECT_PATTERN.sub(r"\1<b>\2</b>", escaped_details)
+    time_range = _format_time_range(match.group("time"))
+
+    return f'{match.group("number")} ({time_range}) {emphasized_details}'
+
+
+def format_schedule(pairs: list[str], separator: str = "\n\n") -> str:
+    """Форматирует список пар и пропускает служебные пустые позиции."""
+    formatted_pairs = [formatted for pair in pairs if (formatted := format_pair(pair))]
+    return separator.join(formatted_pairs)
 
 
 def _init_week_settings():

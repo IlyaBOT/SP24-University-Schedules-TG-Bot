@@ -1,6 +1,7 @@
 import os
 import sqlite3
 import logging
+import html
 from datetime import datetime, timedelta
 from aiogram import types
 from aiogram.dispatcher.middlewares.base import BaseMiddleware
@@ -54,8 +55,8 @@ class MemberTrackerMiddleware(BaseMiddleware):
         cursor = conn.cursor()
 
         cursor.execute('''
-            INSERT OR REPLACE INTO group_members 
-            (chat_id, user_id, username, first_name, last_name, last_activity) 
+            INSERT OR REPLACE INTO group_members
+            (chat_id, user_id, username, first_name, last_name, last_activity)
             VALUES (?, ?, ?, ?, ?, ?)
         ''', (
             chat_id,
@@ -81,7 +82,7 @@ async def cleanup_inactive_members():
 
             cutoff_date = (datetime.now() - timedelta(days=30)).strftime('%Y-%m-%d %H:%M:%S')
             cursor.execute('''
-                DELETE FROM group_members 
+                DELETE FROM group_members
                 WHERE last_activity < ?
             ''', (cutoff_date,))
             deleted_count = cursor.rowcount
@@ -98,6 +99,9 @@ async def cleanup_inactive_members():
 
 async def tag_all_members(message: types.Message):
     chat_id = message.chat.id
+    reply_target = message.reply_to_message or message
+    command_parts = (message.text or "").split(maxsplit=1)
+    reason = command_parts[1].strip() if len(command_parts) == 2 else ""
 
     # Для отладки временно убираем cutoff
     # cutoff = (datetime.now() - timedelta(days=30)).strftime('%Y-%m-%d %H:%M:%S')
@@ -106,7 +110,7 @@ async def tag_all_members(message: types.Message):
     cursor = conn.cursor()
     cursor.execute('''
         SELECT user_id, username, first_name, last_name, last_activity
-        FROM group_members 
+        FROM group_members
         WHERE chat_id = ?
     ''', (chat_id,))
     members = cursor.fetchall()
@@ -115,7 +119,7 @@ async def tag_all_members(message: types.Message):
     logging.info(f"[TagAll] Команда от {message.from_user.id} — найдено {len(members)} участников")
 
     if not members:
-        await message.reply("⚠️ Нет участников в базе данных!")
+        await reply_target.reply("⚠️ Нет участников в базе данных!")
         return
 
     # Отладочный лог всех записей
@@ -125,21 +129,26 @@ async def tag_all_members(message: types.Message):
     user_mentions = []
     for user_id, username, first_name, last_name, _ in members:
         name = f"{first_name} {last_name}" if last_name else first_name
+        safe_name = html.escape(name or "Участник")
         if username:
-            user_mentions.append(f"@{username}")
+            user_mentions.append(f"@{html.escape(username)}")
         else:
-            user_mentions.append(f'<a href="tg://user?id={user_id}">{name}</a>')
+            user_mentions.append(f'<a href="tg://user?id={user_id}">{safe_name}</a>')
+
+    header = "⚠️ ВОССТАНЬТЕ! ⚠️"
+    if reason:
+        header += f"\nПричина: {html.escape(reason)}"
 
     if len(user_mentions) <= 20:
-        await message.reply(
-            f"⚠️ ВОССТАНЬТЕ! ⚠️\n{' '.join(user_mentions)}",
+        await reply_target.reply(
+            f"{header}\n{' '.join(user_mentions)}",
             parse_mode=ParseMode.HTML
         )
     else:
         for i in range(0, len(user_mentions), 5):
             batch = user_mentions[i:i + 5]
-            await message.reply(
-                f"⚠️ ARISE ⚠️\n{' '.join(batch)}",
+            await reply_target.reply(
+                f"{header}\n{' '.join(batch)}",
                 parse_mode=ParseMode.HTML
             )
             await asyncio.sleep(1)
