@@ -5,7 +5,7 @@ import time
 from collections.abc import Awaitable, Callable
 from typing import Any
 
-from aiogram import BaseMiddleware, Bot
+from aiogram import BaseMiddleware
 from aiogram.exceptions import TelegramAPIError
 from aiogram.types import Message
 
@@ -17,12 +17,15 @@ class CommandRateLimitMiddleware(BaseMiddleware):
         self,
         command_cooldown: int = 30,
         all_cooldown: int = 60,
+        warning_lifetime: float = 5,
         clock: Callable[[], float] = time.monotonic,
     ):
         self.command_cooldown = command_cooldown
         self.all_cooldown = all_cooldown
+        self.warning_lifetime = warning_lifetime
         self._clock = clock
         self._last_used: dict[tuple[int, str], float] = {}
+        self._deletion_tasks: set[asyncio.Task] = set()
         self._lock = asyncio.Lock()
 
     async def __call__(
@@ -50,7 +53,6 @@ class CommandRateLimitMiddleware(BaseMiddleware):
         if remaining > 0:
             await self._warn_user(
                 event,
-                data.get("bot"),
                 math.ceil(remaining),
                 is_all_command,
             )
@@ -58,10 +60,9 @@ class CommandRateLimitMiddleware(BaseMiddleware):
 
         return await handler(event, data)
 
-    @staticmethod
     async def _warn_user(
+        self,
         message: Message,
-        bot: Bot | None,
         remaining_seconds: int,
         is_all_command: bool,
     ) -> None:
@@ -76,19 +77,14 @@ class CommandRateLimitMiddleware(BaseMiddleware):
                 f"Попробуйте снова через {remaining_seconds} сек."
             )
 
-        if message.chat.type == "private":
-            await message.answer(warning)
-            return
+        sent_warning = await message.reply(warning)
+        deletion_task = asyncio.create_task(self._delete_warning(sent_warning))
+        self._deletion_tasks.add(deletion_task)
+        deletion_task.add_done_callback(self._deletion_tasks.discard)
 
-        if bot is None:
-            logging.warning("Не удалось отправить личное предупреждение: Bot отсутствует в контексте")
-            return
-
+    async def _delete_warning(self, warning: Message) -> None:
+        await asyncio.sleep(self.warning_lifetime)
         try:
-            await bot.send_message(message.from_user.id, warning)
+            await warning.delete()
         except TelegramAPIError as error:
-            logging.info(
-                "Не удалось отправить пользователю %s личное предупреждение о rate limit: %s",
-                message.from_user.id,
-                error,
-            )
+            logging.info("Не удалось удалить предупреждение о rate limit: %s", error)
